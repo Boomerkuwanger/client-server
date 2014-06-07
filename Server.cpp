@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <unistd.h>
 #include <arpa/inet.h>
-// This to be relplaced with sys/socket.h
 #include <sys/socket.h>
 //------------------------------------------
 #include "Request.h"
@@ -39,20 +38,24 @@ int main(int argc, char* argv[])
     struct sockaddr_in serverAddr;	/* Local address */
     struct sockaddr_in clientAddr;	/* Client address */
     unsigned int clientAddrLength;  /* Length of incoming message */
-	request newRequest;			/* Request received from client */
+	request newRequest;				/* Request received from client */
 	vector<clientEntry> clientTable;/* The client table of all the clients */
-	clientEntry *newClientEntry;	/* Client for client table lookup */
+	clientEntry *clientTableNomad;	/* Client for client table lookup */
 	char echoBuffer[MAX_LENGTH];	/* Raw data to receive from the client */
     unsigned short serverPort;		/* Server port */
     int recvMsgSize;                /* Size of received message */
 	
-	if(argc != 2)
-		DieWithError("Incorrect number of arguments.");
+	if (argc != 2)
+	{
+		DieWithError("Please provide a port number to listen on...");
+	}	
 
 	serverPort = atoi(argv[1]);
-
+	
 	if ((sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
-		DieWithError("socket() failed");
+	{
+		DieWithError("Failed to create socket...");
+	}
 
 	/* Construct local address structure */
     memset(&serverAddr, 0, sizeof(serverAddr));		/* Zero out structure */
@@ -62,21 +65,24 @@ int main(int argc, char* argv[])
 
 	/* Bind to the local address */
     if (bind(sock, (struct sockaddr *) &serverAddr, sizeof(serverAddr)) < 0)
-        DieWithError("bind() failed");
+    {
+        DieWithError("Failed to bind socket to the local address");
+    }
 
 	for (;;) /* Run forever */
     {
-		newClientEntry = (clientEntry*)malloc(sizeof(clientEntry));
+		clientTableNomad = (clientEntry*)malloc(sizeof(clientEntry));
 
         /* Set the size of the in-out parameter */
         clientAddrLength = sizeof(clientAddr);
 		memset(&echoBuffer, 0, sizeof(echoBuffer));
+
         /* Block until receive message from a client */
         if ((recvMsgSize = recvfrom(sock, echoBuffer, MAX_LENGTH, 0,
 			(struct sockaddr *) &clientAddr, &clientAddrLength)) < 0)
             DieWithError("recvfrom() failed");
 
-        printf("Handling client %s\n", inet_ntoa(clientAddr.sin_addr));
+        std::cout << "Handling client " << inet_ntoa(clientAddr.sin_addr)) << std::endl;
 		
 		//const unsigned char * const px = (unsigned char*)&echoBuffer;
 		/*
@@ -95,22 +101,22 @@ int main(int argc, char* argv[])
 		/* If the client is not found, add it */
 		if (iter == clientTable.end()) {
 			//printf("inside if\n");
-			newClientEntry->process_id = getpid();
+			clientTableNomad->process_id = getpid();
 			//printf("get pid\n");
 
-			newClientEntry->inc = newRequest.inc;
+			clientTableNomad->inc = newRequest.inc;
 			//printf("inc\n");
 
-			newClientEntry->client = newRequest.client;
+			clientTableNomad->client = newRequest.client;
 			//printf("client\n");
 			
-			newClientEntry->requestNum = newRequest.req;
+			clientTableNomad->requestNum = newRequest.req;
 			//printf("reqd\n");
 
-			strcpy(newClientEntry->sendMsg, "     ");			
+			strcpy(clientTableNomad->sendMsg, "     ");			
 			//printf("dddd\n");
 			
-			clientTable.push_back(*newClientEntry);
+			clientTable.push_back(*clientTableNomad);
 			//printf("push back\n");
 			
 			iter = clientTable.end()-1;

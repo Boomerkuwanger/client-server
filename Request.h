@@ -6,6 +6,7 @@
 #include <string>
 #include <string.h>
 #pragma pack(1)
+
 typedef struct requestf 
 {
 	char client_ip[16];		/* To hold client IP address in dotted decimal */
