@@ -5,6 +5,8 @@
 #include <iostream>
 #include <string>
 #include <string.h>
+#define REPLY_SIZE 5
+
 #pragma pack(1)
 
 typedef struct requestf 
@@ -49,7 +51,7 @@ typedef struct clientf {
         int inc;                               /* Incarnation number of client */
         int client;                            /* Client number */
         int requestNum;                        /* Request number 'r' */
-        char sendMsg[5];        			   /* The string saved for the client */
+        char sendMsg[REPLY_SIZE];        	   /* The string saved for the client */
 }clientEntry;
 
 clientEntry* Client(int process_id, int inc, int client, int requestNum) {
