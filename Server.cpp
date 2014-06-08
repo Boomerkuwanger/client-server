@@ -47,7 +47,7 @@ int main(int argc, char* argv[])
 	
 	if (argc != 2)
 	{
-		DieWithError("Please provide a port number to listen on...");
+		DieWithError("Failed to start server, please provide a port number to listen on...");
 	}	
 
 	serverPort = atoi(argv[1]);
@@ -66,7 +66,7 @@ int main(int argc, char* argv[])
 	/* Bind to the local address */
     if (bind(sock, (struct sockaddr *) &serverAddr, sizeof(serverAddr)) < 0)
     {
-        DieWithError("Failed to bind socket to the local address");
+        DieWithError("Failed to bind socket to the local address...");
     }
 
 	for (;;) /* Run forever */
@@ -79,10 +79,11 @@ int main(int argc, char* argv[])
 
         /* Block until receive message from a client */
         if ((recvMsgSize = recvfrom(sock, echoBuffer, MAX_LENGTH, 0,
-			(struct sockaddr *) &clientAddr, &clientAddrLength)) < 0)
-            DieWithError("recvfrom() failed");
-
-        std::cout << "Handling client " << inet_ntoa(clientAddr.sin_addr)) << std::endl;
+        	(struct sockaddr *) &clientAddr, &clientAddrLength)) < 0)
+        {
+            DieWithError("Failed to recieve message from client...");
+        }
+       
 		
 		//const unsigned char * const px = (unsigned char*)&echoBuffer;
 		/*
@@ -100,79 +101,69 @@ int main(int argc, char* argv[])
 
 		/* If the client is not found, add it */
 		if (iter == clientTable.end()) {
-			//printf("inside if\n");
 			clientTableNomad->process_id = getpid();
-			//printf("get pid\n");
-
 			clientTableNomad->inc = newRequest.inc;
-			//printf("inc\n");
-
-			clientTableNomad->client = newRequest.client;
-			//printf("client\n");
-			
+			clientTableNomad->client = newRequest.client;			
 			clientTableNomad->requestNum = newRequest.req;
-			//printf("reqd\n");
-
-			strcpy(clientTableNomad->sendMsg, "     ");			
-			//printf("dddd\n");
-			
+			strcpy(clientTableNomad->sendMsg, "     ");						
 			clientTable.push_back(*clientTableNomad);
-			//printf("push back\n");
-			
-			iter = clientTable.end()-1;
-			//printf("end-1\n");
+			iter = clientTable.end() - 1;
 			PrintRequest(&newRequest);
 		}
-
+ 		cout << "Handling request from [" << inet_ntoa(clientAddr.sin_addr) << "] with client number [" << iter->client << "]" << endl;
 		/* Else the iterator is pointing to the discovered client */
-		srand(time(NULL));
-		bool Failure = (rand() % 100) < 10;//may need time seed
+		// FAILURE CODE:
+		// srand(time(NULL));
+		// bool Failure = (rand() % 100) < 10;//may need time seed
 		
 		/* These cases compare 'R' (client request number) to 'r' (server request number) */
-		if (newRequest.req < iter->requestNum&& Failure==false) {
-			printf("\ncase 1 \n");
-			
-			printf("The request from %d was ignored.\n", clientAddr.sin_addr);
-			printf("The client's request number (%d) was less than the server's request number (%d)\n\n", newRequest.req, iter->requestNum);
+		if (newRequest.req < iter->requestNum) {
+			cout << "Case 1: " << endl;			
+			cout << "The request from " << inet_ntoa(clientAddr.sin_addr) << " was already recieved." << endl;
+			cout << "The client's request number [" << newRequest.req << "] is not equal to ";
+			cout << "the server's request number [" << iter->requestNum << "]" << endl;
 			++iter->requestNum;
 		}
-		else if (newRequest.req == iter->requestNum&& Failure==false) {
+		else if (newRequest.req == iter->requestNum) {
 			/* Send received datagram back to the client */
-			printf("\ncase 2 \n");
-			iter->sendMsg[4] = iter->sendMsg[3];
-			iter->sendMsg[3] = iter->sendMsg[2];
-			iter->sendMsg[2] = iter->sendMsg[1];
-			iter->sendMsg[1] = iter->sendMsg[0];
+			cout << "Case 2: " << endl;
+			for (int i = REPLY_SIZE - 1; i > 0; i--)
+			{
+				iter->sendMsg[i] = iter->sendMsg[i - 1];
+			}
 			iter->sendMsg[0] = newRequest.c;
-			unsigned char buffer[sizeof(iter->sendMsg)];
-			memcpy(&buffer, &iter->sendMsg, sizeof(iter->sendMsg));
-			cout << buffer << endl;
-			
-			bool responseFailure = (rand() % 100) < 10;//seed by time
-			if(responseFailure == false)
-			{
-				int size = sendto(sock, buffer, sizeof(buffer), 0, 
-						(struct sockaddr *) &clientAddr, sizeof(clientAddr));
-				cout << size << endl;
-				if(size == -1)
-					DieWithError("sendto() sent a different number of bytes than expected");
-			}
-			else
-			{
-				printf("The server performed the request but failed to return a response to client.");
-			}
-			printf("The client's request number (%d) was equal to the server's request number (%d)\n\n", newRequest.req, iter->requestNum);
-			++iter->requestNum;
-		}
-		else if (newRequest.req > iter->requestNum&& Failure==false) {
-			printf("\ncase 3 \n");
 
-			/* Modify the message to send back */			
-			iter->sendMsg[4] = iter->sendMsg[3]; //toAppend + iter->sendMsg;
-			iter->sendMsg[3] = iter->sendMsg[2];
-			iter->sendMsg[2] = iter->sendMsg[1];
-			iter->sendMsg[1] = iter->sendMsg[0];
+			unsigned char buffer[sizeof(iter->sendMsg)];
+			memcpy(&buffer, &iter->sendMsg, sizeof(iter->sendMsg) + 1);
+			cout << "Sending message [" << buffer << "] to client. " << endl;
+			
+			bool responseFailure = false; //(rand() % 100) < 10;//seed by time
+			if(responseFailure == false)
+			{
+				if(sendto(sock, buffer, sizeof(buffer), 0,
+					(struct sockaddr *) &clientAddr, sizeof(clientAddr)) == -1)
+				{
+					DieWithError("Failed to send message, sendto sent a different number of bytes than expected...");
+				}
+			}
+			else
+			{
+				perror("The server performed the request but failed to return a response to client.");
+			}
+
+			cout << "The request from " << inet_ntoa(clientAddr.sin_addr) << " was recieved and acknowledged" << endl;
+			cout << "The client's request number [" << newRequest.req << "] is equal to ";
+			cout << "the server's request number [" << iter->requestNum << "]" << endl;
+			++iter->requestNum;
+		}
+		else if (newRequest.req > iter->requestNum) {
+			cout << "Case 3: " << endl;
+			for (int i = REPLY_SIZE - 1; i > 0; i--)
+			{
+				iter->sendMsg[i] = iter->sendMsg[i - 1];
+			}
 			iter->sendMsg[0] = newRequest.c;
+
 			/* Send received datagram back to the client */
 			unsigned char buffer[sizeof(iter->sendMsg)];
 			memcpy(&buffer, &iter->sendMsg, sizeof(iter->sendMsg));
@@ -180,25 +171,29 @@ int main(int argc, char* argv[])
 			bool responseFailure = (rand() % 100) < 10;//seed by time
 			if(responseFailure == false)
 			{
-				if (sendto(sock, buffer, sizeof(buffer), 0, 
-					(struct sockaddr *) &clientAddr, sizeof(clientAddr)) != recvMsgSize)
-						DieWithError("sendto() sent a different number of bytes than expected");
+				if(sendto(sock, buffer, sizeof(buffer), 0,
+					(struct sockaddr *) &clientAddr, sizeof(clientAddr)) == -1)
+				{
+					DieWithError("Failed to send message, sendto sent a different number of bytes than expected...");
+				}
 			}
 			else
 			{
-				printf("The server performed the request but failed to return a response to client.");
+				perror("The server performed the request but failed to return a response to client.");
 			}
-			printf("The client's request number (%d) was greater than the server's request number (%d)\n\n", newRequest.req, iter->requestNum);
+			cout << "The request from " << inet_ntoa(clientAddr.sin_addr) << " was recieved and acknowledged" << endl;
+			cout << "The client's request number [" << newRequest.req << "] was greater than ";
+			cout << "the server's request number [" << iter->requestNum << "]" << endl;
 			++iter->requestNum;
 		}
-		else if(Failure==true)
+		else
 		{
-			printf("The server dropped the request");
+			perror("The server dropped the request");
 		}
-
+		cout << endl;
 		/* Sort the client table in the interest of lookup times */
 		sort(clientTable.begin(), clientTable.end(), compareByClient);
     }
-    /* NOT REACHED */
+
 	return 0;
 }
