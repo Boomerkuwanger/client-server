@@ -35,49 +35,56 @@ int main(int argc, const char* argv[]) {
 	char echoBuffer[ECHOMAX + 1];    /* Buffer for receiving echoed string */
 	int respStringLen;               /* Length of received response */
 	int successfulRequests = 0;
+	srand(time(NULL));
 
 	//GetIncarnationNumber();
 	ValidateInputArguments(argc, argv[0]);
 	serverIp = argv[1];
 
 	if (argc == 4)
+	{
 		echoServerPort = atoi(argv[3]);
+	}
 	else
+	{
 		echoServerPort = 7;
+	}
 
 	if ((socketDescriptor = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
-		DieWithError("socket() failed");
+	{
+		DieWithError("Failed to create socket...");
+	}
 
 	/* Construct the server address structure */
 	memset(&echoServAddr, 0, sizeof(echoServAddr));    /* Zero out structure */
 	echoServAddr.sin_family = AF_INET;                 /* Internet addr family */
 	echoServAddr.sin_addr.s_addr = inet_addr(serverIp);  /* Server IP address */
 	echoServAddr.sin_port   = htons(echoServerPort);     /* Server port */
-	while (successfulRequests < 20) 
+	while (true) 
 	{
-
-		struct requestf r;
-		r.inc = 10;
-		r.client = atoi(argv[2]);
-		r.req = successfulRequests;
-		string s = GetAddresses(AF_INET);
-		int sizeOfString=s.size();
-		for (int i=0;i<=sizeOfString;i++)
+		struct requestf requestToSend;
+		requestToSend.inc = 10;
+		requestToSend.client = atoi(argv[2]);
+		requestToSend.req = successfulRequests;
+		string ipAddress = GetAddresses(AF_INET);
+		int sizeOfString = ipAddress.size();
+		for (int i = 0; i <= sizeOfString; i++)
 		{
-			r.client_ip[i]=s[i];
+			requestToSend.client_ip[i] = ipAddress[i];
 		}	
-		r.c = CharToSend();
-		cout << "Sending : " << r.c << endl;
+		requestToSend.c = CharToSend();
+		cout << "Sending : " << requestToSend.c << endl;
+		
 		//PrintRequest(&r); 
-		const unsigned char * const px = (unsigned char*)&r;
+		const unsigned char * const px = (unsigned char*)&requestToSend;
 		/*
 		   unsigned int i;
 		   cout << "HEX DUMPING" << endl;
 		   for (i = 0; i < sizeof(r); ++i) printf("%02X ", px[i]);
 		   cout << "DONE" << endl;
-		 */
+		*/
 
-		int sentdata = sendto(socketDescriptor, px, sizeof(r), 0, (struct sockaddr *)&echoServAddr, sizeof(echoServAddr));
+		int sentdata = sendto(socketDescriptor, px, sizeof(requestToSend), 0, (struct sockaddr *)&echoServAddr, sizeof(echoServAddr));
 		if(sentdata == -1)
 		{ 
 			printf("%d \n", errno);
@@ -86,8 +93,10 @@ int main(int argc, const char* argv[]) {
 
 		fromSize = sizeof(fromAddr);
 		respStringLen = recvfrom(socketDescriptor, echoBuffer, ECHOMAX, 0, (struct sockaddr *) &fromAddr, &fromSize);
-		if (respStringLen < (int)sizeof(char)*5)
+		if (respStringLen < REPLY_SIZE)
+		{
 			DieWithError("recvfrom() failed");
+		}
 
 		if (echoServAddr.sin_addr.s_addr != fromAddr.sin_addr.s_addr)
 		{
@@ -97,7 +106,7 @@ int main(int argc, const char* argv[]) {
 
 		/* null-terminate the received data */
 		echoBuffer[respStringLen] = '\0';
-		printf("Received: %s\n\n", echoBuffer);    /* Print the echoed arg */	
+		cout << "Received: " << echoBuffer << endl;    /* Print the echoed arg */	
 		successfulRequests++;
 	}
 	close(socketDescriptor);
@@ -158,11 +167,9 @@ void ValidateInputArguments(int argc, const char* argv)
 
 char CharToSend() 
 {
-	char randChar = ' ';
-	int randNum = 0;
-	randNum = 26 * (rand() / (RAND_MAX + 1.0));
+	int randNum = 26 * (rand() / (RAND_MAX + 1.0));
 	randNum += 97;
-	randChar = (char)randNum;
+	char randChar = (char)randNum;
 
 	return randChar;
 }
